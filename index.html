@@ -89,9 +89,10 @@
 <p class="subtitle">Elliott Wave · 2% Rule · Wave 3 Scanner — Phan</p>
 
 <div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('calc',this)">💰 Position Size</button>
-  <button class="tab-btn" onclick="switchTab('scanner',this)">🔍 Wave 3 Scanner</button>
-  <button class="tab-btn" onclick="switchTab('checklist',this)">✅ Checklist</button>
+  <button class="tab-btn active" onclick="switchTab('calc',this)">💰 Size</button>
+  <button class="tab-btn" onclick="switchTab('scanner',this)">🔍 Scanner</button>
+  <button class="tab-btn" onclick="switchTab('top20',this)">🏆 Top 20</button>
+  <button class="tab-btn" onclick="switchTab('checklist',this)">✅ Check</button>
 </div>
 
 <!-- ════════════════ TAB 1: POSITION SIZE ════════════════ -->
@@ -183,7 +184,45 @@
   <div id="scan-results" class="scan-results"></div>
 </div>
 
-<!-- ════════════════ TAB 3: CHECKLIST ════════════════ -->
+<!-- ════════════════ TAB 3: MARKET TOP 20 ════════════════ -->
+<div id="tab-top20" class="section">
+  <div class="card">
+    <div class="card-title">🌐 เลือกตลาด</div>
+    <div class="mkt-toggle">
+      <button class="mkt-btn active" id="top20-mkt-us" onclick="setTop20Market('US')">🇺🇸 US Market (~90 หุ้น)</button>
+      <button class="mkt-btn" id="top20-mkt-th" onclick="setTop20Market('TH')">🇹🇭 Thai SET50</button>
+    </div>
+    <!-- Progress -->
+    <div id="top20-progress-wrap" style="display:none;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:.78rem;color:#a0aec0;margin-bottom:6px">
+        <span id="top20-status-txt">กำลัง Scan...</span>
+        <span id="top20-pct-txt">0%</span>
+      </div>
+      <div style="background:#2d3748;border-radius:4px;height:8px;overflow:hidden">
+        <div id="top20-bar" style="height:100%;border-radius:4px;background:linear-gradient(90deg,#63b3ed,#4fd1c5);transition:width .3s;width:0%"></div>
+      </div>
+      <div style="font-size:.72rem;color:#4a5568;margin-top:4px" id="top20-current-ticker"></div>
+    </div>
+    <button class="scan-btn" id="top20-btn" onclick="runTop20()">🏆 หา Top 20 Wave 3 Candidates</button>
+    <div class="refresh-time" id="top20-time"></div>
+  </div>
+
+  <!-- Sort Controls -->
+  <div id="top20-controls" style="display:none;margin-bottom:12px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:.75rem;color:#718096">เรียงโดย:</span>
+      <button class="mkt-btn active" id="sort-score" onclick="sortTop20('score',this)">🏆 Wave Score</button>
+      <button class="mkt-btn" id="sort-rsi" onclick="sortTop20('rsi',this)">📊 RSI</button>
+      <button class="mkt-btn" id="sort-1m" onclick="sortTop20('p1m',this)">📈 1M Perf</button>
+      <button class="mkt-btn" id="sort-vol" onclick="sortTop20('relVol',this)">🔊 Volume</button>
+    </div>
+  </div>
+
+  <!-- Results table -->
+  <div id="top20-results"></div>
+</div>
+
+<!-- ════════════════ TAB 4: CHECKLIST ════════════════ -->
 <div id="tab-checklist" class="section">
   <div class="card">
     <div class="card-title">🌍 GATE 1 — Market Context</div>
@@ -538,6 +577,226 @@ function calculate(){
   document.getElementById('sum-shares').textContent=fmt(shares)+' หุ้น';
   document.getElementById('sum-cap').textContent='฿'+fmt(capUsedTHB)+' ('+capPct+'%)';
   document.getElementById('sum-loss').textContent='฿'+fmt(actualLoss)+' ('+riskPct+'%)';
+}
+
+// ── TOP 20 MARKET SCANNER ──
+const US_STOCKS = [
+  // Mega Cap Tech & AI
+  'NVDA','MSFT','AAPL','AMZN','META','GOOGL','AMD','AVGO','ORCL','CRM',
+  // Semiconductors
+  'TSM','QCOM','TXN','INTC','MU','AMAT','LRCX','KLAC','ONTO','AEIS',
+  // Energy (leading sector 2026)
+  'XOM','CVX','COP','EOG','FANG','WMB','OXY','SLB','HAL','MRO','DVN','VLO','PSX','MGY',
+  // Defense & Industrial
+  'RTX','LMT','NOC','GD','PLTR','AXON','CACI','BAH','HII',
+  // Healthcare
+  'LLY','UNH','ABBV','MRK','TMO','ISRG','DXCM','MRNA','REGN',
+  // Financials
+  'JPM','BAC','GS','MS','V','MA','PYPL','SPGI','BLK',
+  // Consumer & Retail
+  'WMT','COST','HD','TGT','AMZN','SBUX','MCD',
+  // Infrastructure & Utilities
+  'NEE','AES','PCG','SO','D',
+  // Mid-cap momentum
+  'FIX','IBP','FCFS','GSAT','CRK','MUSA','LYFT','UBER','RBLX','SNAP',
+  // ETFs (bonus)
+  'XLE','XLV','XLK','QQQ','IWM'
+];
+
+const TH_STOCKS = [
+  'ADVANC','AOT','AWC','BANPU','BBL','BDMS','BEM','BH','BTS','CBG',
+  'CENTEL','COM7','CPALL','CPF','CPN','DELTA','EA','EGCO','GULF','HMPRO',
+  'IVL','KBANK','KTB','KTC','LH','MINT','MTC','OR','OSP','PTT',
+  'PTTEP','PTTGC','RATCH','SCB','SCC','SCGP','TOP','TQM','TRUE','TTB',
+  'TU','WHA','XO','HANA','TIDLOR','GPSC','BGRIM','SIRI','ORI','SPRC'
+];
+
+let top20Market = 'US';
+let top20AllResults = [];
+let top20SortKey = 'score';
+let top20Running = false;
+
+function setTop20Market(m){
+  top20Market = m;
+  document.getElementById('top20-mkt-us').className = 'mkt-btn'+(m==='US'?' active':'');
+  document.getElementById('top20-mkt-th').className  = 'mkt-btn'+(m==='TH'?' active':'');
+  const btn = document.getElementById('top20-btn');
+  btn.textContent = m==='US' ? '🏆 หา Top 20 Wave 3 Candidates (US ~90 หุ้น)' : '🏆 หา Top 20 Wave 3 Candidates (SET50)';
+}
+
+function sortTop20(key, btn){
+  top20SortKey = key;
+  document.querySelectorAll('#top20-controls .mkt-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTop20Table(top20AllResults);
+}
+
+async function runTop20(){
+  if(top20Running) return;
+  top20Running = true;
+  const list = top20Market === 'US' ? US_STOCKS : TH_STOCKS;
+  const btn = document.getElementById('top20-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลัง Scan...';
+  document.getElementById('top20-progress-wrap').style.display = 'block';
+  document.getElementById('top20-controls').style.display = 'none';
+  document.getElementById('top20-results').innerHTML = '';
+  top20AllResults = [];
+
+  const BATCH = 3; // parallel requests per batch
+  const DELAY = 500; // ms between batches
+
+  for(let i = 0; i < list.length; i += BATCH){
+    const batch = list.slice(i, i + BATCH);
+    // Set current ticker display
+    document.getElementById('top20-current-ticker').textContent = 'กำลังดึง: ' + batch.join(', ');
+    // Fetch batch in parallel
+    const results = await Promise.all(batch.map(async t => {
+      // Temporarily set market for fetchStock
+      const prevMarket = market;
+      market = top20Market;
+      const d = await fetchStock(t);
+      market = prevMarket;
+      d.rawTicker = t;
+      return d;
+    }));
+    results.forEach(d => { if(!d.error) top20AllResults.push(d); });
+    // Update progress
+    const done = Math.min(i + BATCH, list.length);
+    const pct = Math.round(done / list.length * 100);
+    document.getElementById('top20-bar').style.width = pct + '%';
+    document.getElementById('top20-pct-txt').textContent = pct + '%';
+    document.getElementById('top20-status-txt').textContent =
+      `Scanned ${done}/${list.length} หุ้น — พบ ${top20AllResults.length} ตัวที่มีข้อมูล`;
+    // Show partial results every 3 batches
+    if(top20AllResults.length >= 5) renderTop20Table(top20AllResults, true);
+    if(i + BATCH < list.length) await new Promise(r => setTimeout(r, DELAY));
+  }
+
+  // Final render
+  renderTop20Table(top20AllResults);
+  document.getElementById('top20-progress-wrap').style.display = 'none';
+  document.getElementById('top20-controls').style.display = 'block';
+  const now = new Date();
+  document.getElementById('top20-time').textContent =
+    `Scan เสร็จ: ${now.toLocaleTimeString('th-TH')} | Scanned ${top20AllResults.length} หุ้น | Top 20 Wave 3`;
+  btn.disabled = false;
+  btn.textContent = '🔄 Scan ใหม่';
+  top20Running = false;
+}
+
+function renderTop20Table(allData, partial=false){
+  // Score each stock
+  const scored = allData.map(d => {
+    const s = scoreStock(d);
+    return { ...d, ...s };
+  });
+
+  // Sort
+  const sortFn = {
+    score: (a,b) => b.score - a.score,
+    rsi:   (a,b) => {
+      // Best RSI = closest to 55 (middle of 45-65 zone)
+      const da = Math.abs((a.rsi||0) - 55), db = Math.abs((b.rsi||0) - 55);
+      return da - db;
+    },
+    p1m:   (a,b) => (b.p1m||0) - (a.p1m||0),
+    relVol:(a,b) => (b.relVol||0) - (a.relVol||0),
+  };
+  scored.sort(sortFn[top20SortKey] || sortFn.score);
+
+  const top20 = scored.slice(0, 20);
+  const cur = top20Market === 'TH' ? '฿' : '$';
+
+  const rows = top20.map((d, idx) => {
+    const rank = idx + 1;
+    const pct20 = Math.round(d.score * 100);
+    const barColor = d.score>=0.75 ? '#68d391' : d.score>=0.5 ? '#f6e05e' : '#fc8181';
+    const verdictCls = d.score>=0.75 ? 'pass' : d.score>=0.5 ? 'warn' : 'fail';
+    const verdictTxt = d.score>=0.75 ? '🟢' : d.score>=0.5 ? '🟡' : '🔴';
+    const rsiColor = d.rsi && d.rsi>=45 && d.rsi<=65 ? '#68d391' : d.rsi&&d.rsi<45 ? '#fc8181' : '#f6e05e';
+    const macdOk = d.macd && d.macd.histogram > 0;
+    const emaOk = d.ema20 > d.ema50;
+    const chgCls = d.dayChgPct >= 0 ? '#68d391' : '#fc8181';
+    const medalColors = ['#FFD700','#C0C0C0','#CD7F32'];
+    const rankStyle = rank <= 3 ? `color:${medalColors[rank-1]};font-weight:900` : 'color:#718096';
+
+    return `<tr onclick="loadToScanner('${d.rawTicker}')" style="cursor:pointer;transition:background .15s" onmouseover="this.style.background='#1e2a3a'" onmouseout="this.style.background='transparent'">
+      <td style="padding:10px 8px;text-align:center;font-size:1rem;${rankStyle}">${rank<=3?['🥇','🥈','🥉'][rank-1]:rank}</td>
+      <td style="padding:10px 8px">
+        <div style="font-weight:700;color:#63b3ed;font-size:.95rem">${d.sym.replace('.BK','')}</div>
+        <div style="font-size:.68rem;color:#718096;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.name.substring(0,18)}</div>
+      </td>
+      <td style="padding:10px 8px;text-align:right">
+        <div style="font-weight:600">${cur}${fmt(d.cur,2)}</div>
+        <div style="font-size:.72rem;color:${chgCls}">${pct(d.dayChgPct)}</div>
+      </td>
+      <td style="padding:10px 8px;text-align:center">
+        <div style="font-size:.85rem;color:${rsiColor};font-weight:700">${d.rsi!=null?d.rsi.toFixed(1):'—'}</div>
+      </td>
+      <td style="padding:10px 8px;text-align:center">
+        <span style="font-size:.8rem;${macdOk?'color:#68d391':'color:#fc8181'}">${macdOk?'▲':'▼'}</span>
+      </td>
+      <td style="padding:10px 8px;text-align:center">
+        <span style="font-size:.78rem;${emaOk?'color:#68d391':'color:#fc8181'}">${emaOk?'✓':'✗'}</span>
+      </td>
+      <td style="padding:10px 8px;text-align:right;font-size:.82rem;${d.p1m>=5&&d.p1m<=20?'color:#68d391':d.p1m>20?'color:#f6e05e':'color:#fc8181'}">${d.p1m!=null?pct(d.p1m):'—'}</td>
+      <td style="padding:10px 8px;text-align:right;font-size:.82rem;color:#a0aec0">${d.p3m!=null?pct(d.p3m):'—'}</td>
+      <td style="padding:10px 8px;min-width:80px">
+        <div style="background:#2d3748;border-radius:3px;height:6px;overflow:hidden">
+          <div style="width:${pct20}%;height:100%;background:${barColor};border-radius:3px"></div>
+        </div>
+        <div style="font-size:.68rem;color:#718096;text-align:center;margin-top:2px">${pct20}%</div>
+      </td>
+      <td style="padding:10px 8px;text-align:center">${verdictTxt}</td>
+    </tr>`;
+  });
+
+  const tableHtml = `
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:14px 16px 10px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2d3748">
+        <span style="font-size:.75rem;color:#718096;text-transform:uppercase;letter-spacing:1px">
+          🏆 Top 20 Wave 3 Candidates ${partial?'(กำลัง Scan...)':''} — ${top20Market==='US'?'🇺🇸 US':'🇹🇭 Thai SET'}
+        </span>
+        <span style="font-size:.72rem;color:#4a5568">คลิกที่หุ้นเพื่อเปิดใน Scanner</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+          <thead>
+            <tr style="background:#151c27;border-bottom:1px solid #2d3748">
+              <th style="padding:8px;color:#718096;font-weight:600;font-size:.68rem">#</th>
+              <th style="padding:8px;color:#718096;font-weight:600;font-size:.68rem;text-align:left">Ticker</th>
+              <th style="padding:8px;color:#718096;font-weight:600;font-size:.68rem;text-align:right">ราคา</th>
+              <th style="padding:8px;color:#718096;font-weight:600;font-size:.68rem">RSI</th>
+              <th style="padding:8px;color:#718096;font-weight:600;font-size:.68rem">MACD</th>
+              <th style="padding:8px;color:#718096;font-weight:600;font-size:.68rem">EMA</th>
+              <th style="padding:8px;color:#718096;font-weight:600;font-size:.68rem;text-align:right">1M</th>
+              <th style="padding:8px;color:#718096;font-weight:600;font-size:.68rem;text-align:right">3M</th>
+              <th style="padding:8px;color:#718096;font-weight:600;font-size:.68rem">Score</th>
+              <th style="padding:8px;color:#718096;font-weight:600;font-size:.68rem">Wave3</th>
+            </tr>
+          </thead>
+          <tbody>${rows.join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+  document.getElementById('top20-results').innerHTML = tableHtml;
+}
+
+function loadToScanner(ticker){
+  // Load ticker into scanner tab and switch to it
+  const inputs = document.querySelectorAll('.ticker-in');
+  inputs[0].value = ticker;
+  for(let i=1;i<inputs.length;i++) inputs[i].value='';
+  // Set market
+  market = top20Market;
+  document.getElementById('mkt-us').className = 'mkt-btn'+(top20Market==='US'?' active':'');
+  document.getElementById('mkt-th').className  = 'mkt-btn'+(top20Market==='TH'?' active':'');
+  // Switch tab
+  const btn = document.querySelectorAll('.tab-btn')[1];
+  switchTab('scanner', btn);
+  // Auto-run scan
+  runScan();
 }
 
 // ── Checklist ──
