@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>📊 Stock Calculator — Phan</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh;padding:24px 16px}
+    h1{text-align:center;font-size:1.4rem;color:#63b3ed;margin-bottom:4px}
+    .subtitle{text-align:center;font-size:.8rem;color:#718096;margin-bottom:20px}
+    .card{background:#1a202c;border-radius:14px;padding:20px;margin-bottom:16px;border:1px solid #2d3748}
+    .card-title{font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#718096;margin-bottom:14px}
+    .row{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+    .field{flex:1;min-width:140px}
+    label{display:block;font-size:.75rem;color:#a0aec0;margin-bottom:5px}
+    input,select{width:100%;background:#2d3748;border:1px solid #4a5568;color:#e2e8f0;border-radius:8px;padding:10px 12px;font-size:.95rem;outline:none;transition:border-color .2s}
+    input:focus,select:focus{border-color:#63b3ed}
+    .tabs{display:flex;gap:8px;margin-bottom:16px}
+    .tab-btn{flex:1;background:#2d3748;border:1px solid #4a5568;color:#a0aec0;border-radius:8px;padding:9px;cursor:pointer;font-size:.85rem;transition:all .2s}
+    .tab-btn.active{background:#2b4c7e;border-color:#63b3ed;color:#63b3ed;font-weight:700}
+    .section{display:none}.section.active{display:block}
+    .results-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .result-box{background:#2d3748;border-radius:10px;padding:14px;text-align:center}
+    .result-box .lbl{font-size:.68rem;color:#a0aec0;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+    .result-box .val{font-size:1.45rem;font-weight:700;color:#68d391}
+    .result-box .val.red{color:#fc8181}.result-box .val.blue{color:#63b3ed}.result-box .val.yellow{color:#f6e05e}
+    .result-box .sub{font-size:.72rem;color:#718096;margin-top:2px}
+    .result-box.full{grid-column:1/-1}
+    .risk-row{display:flex;align-items:center;gap:10px}
+    .risk-row input[type=range]{flex:1;padding:0;height:6px;border-radius:3px;background:#4a5568;cursor:pointer;border:none}
+    .risk-badge{background:#2b6cb0;color:#fff;border-radius:6px;padding:4px 10px;font-weight:700;font-size:1rem;min-width:56px;text-align:center}
+    .risk-badge.danger{background:#c53030}.risk-badge.warn{background:#b7791f}
+    .divider{border:none;border-top:1px solid #2d3748;margin:14px 0}
+    .rr-bar-wrap{margin-top:8px}
+    .rr-bar-bg{background:#4a5568;border-radius:4px;height:8px;width:100%;overflow:hidden}
+    .rr-bar-fill{height:100%;border-radius:4px;transition:width .4s;background:#68d391}
+    .rr-bar-fill.bad{background:#fc8181}.rr-bar-fill.ok{background:#f6e05e}.rr-bar-fill.good{background:#68d391}.rr-bar-fill.great{background:#4fd1c5}
+    .summary-box{background:#1c3a5e;border:1px solid #2b6cb0;border-radius:12px;padding:16px;margin-top:16px}
+    .summary-box .s-title{font-size:.75rem;color:#90cdf4;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px}
+    .summary-line{display:flex;justify-content:space-between;font-size:.88rem;padding:5px 0;border-bottom:1px solid #2b4c7e;color:#cbd5e0}
+    .summary-line:last-child{border-bottom:none}
+    .summary-line span:last-child{color:#90cdf4;font-weight:700}
+    .progress-bar-bg{background:#2d3748;border-radius:4px;height:6px;margin-top:10px;overflow:hidden}
+    .progress-bar-fill{height:100%;border-radius:4px;background:#48bb78;transition:width .3s}
+    .progress-label{font-size:.72rem;color:#718096;margin-top:4px;text-align:right}
+
+    /* ── Scanner Styles ── */
+    .ticker-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
+    .ticker-wrap{position:relative}
+    .ticker-wrap input{text-transform:uppercase;font-weight:700;letter-spacing:1px;text-align:center;padding:10px 8px}
+    .mkt-toggle{display:flex;gap:6px;margin-bottom:14px;align-items:center;font-size:.8rem;color:#a0aec0}
+    .mkt-toggle label{margin:0}
+    .mkt-btn{padding:5px 14px;border-radius:6px;border:1px solid #4a5568;background:#2d3748;color:#a0aec0;cursor:pointer;font-size:.8rem;transition:all .15s}
+    .mkt-btn.active{background:#276749;border-color:#68d391;color:#9ae6b4;font-weight:700}
+    .scan-btn{width:100%;background:linear-gradient(135deg,#2b6cb0,#2c7a7b);border:none;color:#fff;border-radius:10px;padding:13px;font-size:1rem;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:opacity .2s;margin-bottom:16px}
+    .scan-btn:hover{opacity:.88}.scan-btn:disabled{opacity:.5;cursor:not-allowed}
+    .scan-results{display:flex;flex-direction:column;gap:14px}
+    .stock-card{background:#1a202c;border:1px solid #2d3748;border-radius:14px;overflow:hidden;transition:border-color .3s}
+    .stock-card.pass{border-color:#276749}.stock-card.warn{border-color:#b7791f}.stock-card.fail{border-color:#742a2a}.stock-card.loading{border-color:#2b4c7e}
+    .stock-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#151c27}
+    .stock-ticker{font-size:1.1rem;font-weight:700;color:#63b3ed}
+    .stock-name{font-size:.75rem;color:#718096;margin-top:2px}
+    .stock-price{text-align:right}
+    .stock-price .price{font-size:1.2rem;font-weight:700;color:#e2e8f0}
+    .stock-price .chg{font-size:.78rem;margin-top:2px}
+    .stock-price .chg.up{color:#68d391}.stock-price .chg.dn{color:#fc8181}
+    .score-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:.8rem;font-weight:700}
+    .score-pill.pass{background:#276749;color:#9ae6b4}
+    .score-pill.warn{background:#744210;color:#fbd38d}
+    .score-pill.fail{background:#742a2a;color:#feb2b2}
+    .criteria-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;padding:2px 10px 12px}
+    .crit{display:flex;align-items:center;gap:7px;padding:5px 6px;border-radius:6px;font-size:.8rem}
+    .crit-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .crit-dot.pass{background:#68d391}.crit-dot.fail{background:#fc8181}.crit-dot.warn{background:#f6e05e}.crit-dot.na{background:#4a5568}
+    .crit-label{color:#a0aec0;flex:1}
+    .crit-value{color:#e2e8f0;font-weight:600;font-size:.78rem;text-align:right;white-space:nowrap}
+    .loading-bar{height:3px;background:linear-gradient(90deg,transparent,#63b3ed,transparent);background-size:200% 100%;animation:shimmer 1.2s infinite}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .err-msg{text-align:center;color:#fc8181;padding:16px;font-size:.88rem}
+    .wave-score-bar{margin:4px 14px 12px;background:#2d3748;border-radius:4px;height:6px;overflow:hidden}
+    .wave-score-fill{height:100%;border-radius:4px;transition:width .5s}
+    .note-row{padding:4px 16px 10px;font-size:.75rem;color:#718096;font-style:italic}
+    .refresh-time{font-size:.68rem;color:#4a5568;text-align:center;margin-bottom:10px}
+  </style>
+</head>
+<body>
+<h1>📊 Stock Calculator</h1>
+<p class="subtitle">Elliott Wave · 2% Rule · Wave 3 Scanner — Phan</p>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('calc',this)">💰 Position Size</button>
+  <button class="tab-btn" onclick="switchTab('scanner',this)">🔍 Wave 3 Scanner</button>
+  <button class="tab-btn" onclick="switchTab('checklist',this)">✅ Checklist</button>
+</div>
+
+<!-- ════════════════ TAB 1: POSITION SIZE ════════════════ -->
+<div id="tab-calc" class="section active">
+  <div class="card">
+    <div class="card-title">⚙️ Portfolio Settings</div>
+    <div class="row">
+      <div class="field"><label>เงินทุนรวม (฿)</label><input type="number" id="capital" value="100000" oninput="calculate()"/></div>
+      <div class="field"><label>สกุลเงินหุ้น</label>
+        <select id="currency" onchange="toggleUSD()">
+          <option value="THB">🇹🇭 THB (หุ้นไทย)</option>
+          <option value="USD">🇺🇸 USD (หุ้น US)</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" id="usd-row" style="display:none">
+      <div class="field"><label>อัตราแลกเปลี่ยน USD/THB</label><input type="number" id="usdthb" value="33.5" step="0.1" oninput="calculate()"/></div>
+    </div>
+    <div>
+      <label>ความเสี่ยงต่อ Trade</label>
+      <div class="risk-row" style="margin-top:6px">
+        <input type="range" id="risk-range" min="0.5" max="5" step="0.5" value="2" oninput="syncRisk(this.value)"/>
+        <div class="risk-badge" id="risk-badge">2%</div>
+      </div>
+      <input type="number" id="risk-pct" value="2" step="0.5" min="0.1" max="10" style="margin-top:8px" oninput="syncRiskInput(this.value)"/>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📈 ข้อมูล Trade</div>
+    <div class="row"><div class="field"><label>ชื่อหุ้น / Ticker</label><input type="text" id="ticker" placeholder="เช่น GULF, NVDA"/></div></div>
+    <div class="row">
+      <div class="field"><label>ราคา Entry</label><input type="number" id="entry" placeholder="0.00" step="0.01" oninput="calculate()"/></div>
+      <div class="field"><label>ราคา Stop Loss</label><input type="number" id="sl" placeholder="0.00" step="0.01" oninput="calculate()"/></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Target 1</label><input type="number" id="t1" placeholder="0.00" step="0.01" oninput="calculate()"/></div>
+      <div class="field"><label>Target 2</label><input type="number" id="t2" placeholder="0.00" step="0.01" oninput="calculate()"/></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📊 ผลการคำนวณ</div>
+    <div class="results-grid">
+      <div class="result-box"><div class="lbl">จำนวนหุ้น</div><div class="val" id="shares">—</div><div class="sub">หุ้น</div></div>
+      <div class="result-box"><div class="lbl">ทุนที่ใช้</div><div class="val blue" id="capital-used">—</div><div class="sub" id="capital-pct">จาก Portfolio</div></div>
+      <div class="result-box"><div class="lbl">Max Loss</div><div class="val red" id="max-loss">—</div><div class="sub" id="max-loss-pct">—</div></div>
+      <div class="result-box"><div class="lbl">Risk per Share</div><div class="val yellow" id="risk-per-share">—</div><div class="sub" id="rps-unit">ต่อหุ้น</div></div>
+    </div>
+    <div id="rr-section" style="display:none;margin-top:14px">
+      <hr class="divider"/>
+      <div class="results-grid">
+        <div class="result-box"><div class="lbl">R:R (T1)</div><div class="val" id="rr1">—</div><div class="sub" id="rr1-label">—</div></div>
+        <div class="result-box"><div class="lbl">R:R (T2)</div><div class="val" id="rr2">—</div><div class="sub" id="rr2-label">—</div></div>
+      </div>
+      <div class="rr-bar-wrap"><div class="rr-bar-bg"><div class="rr-bar-fill" id="rr-bar" style="width:0%"></div></div></div>
+      <div class="progress-label" id="rr-note">—</div>
+    </div>
+    <div id="summary" class="summary-box" style="display:none">
+      <div class="s-title">🎯 Trade Summary — <span id="sum-ticker">—</span></div>
+      <div class="summary-line"><span>Entry</span><span id="sum-entry">—</span></div>
+      <div class="summary-line"><span>Stop Loss</span><span id="sum-sl">—</span></div>
+      <div class="summary-line"><span>Target 1</span><span id="sum-t1">—</span></div>
+      <div class="summary-line"><span>Target 2</span><span id="sum-t2">—</span></div>
+      <div class="summary-line"><span>จำนวนหุ้น</span><span id="sum-shares">—</span></div>
+      <div class="summary-line"><span>ทุนที่ใช้</span><span id="sum-cap">—</span></div>
+      <div class="summary-line"><span>Max Loss</span><span id="sum-loss">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ TAB 2: WAVE 3 SCANNER ════════════════ -->
+<div id="tab-scanner" class="section">
+  <div class="card">
+    <div class="card-title">🌐 ตลาด</div>
+    <div class="mkt-toggle">
+      <button class="mkt-btn active" id="mkt-us" onclick="setMarket('US')">🇺🇸 US (NASDAQ/NYSE)</button>
+      <button class="mkt-btn" id="mkt-th" onclick="setMarket('TH')">🇹🇭 Thai (SET)</button>
+    </div>
+    <div class="card-title" style="margin-bottom:8px">ใส่ Ticker (สูงสุด 5 ตัว)</div>
+    <div class="ticker-grid" id="ticker-inputs">
+      <div class="ticker-wrap"><input class="ticker-in" placeholder="e.g. NVDA" maxlength="10" oninput="this.value=this.value.toUpperCase()"/></div>
+      <div class="ticker-wrap"><input class="ticker-in" placeholder="e.g. GULF" maxlength="10" oninput="this.value=this.value.toUpperCase()"/></div>
+      <div class="ticker-wrap"><input class="ticker-in" placeholder="" maxlength="10" oninput="this.value=this.value.toUpperCase()"/></div>
+      <div class="ticker-wrap"><input class="ticker-in" placeholder="" maxlength="10" oninput="this.value=this.value.toUpperCase()"/></div>
+      <div class="ticker-wrap"><input class="ticker-in" placeholder="" maxlength="10" oninput="this.value=this.value.toUpperCase()"/></div>
+    </div>
+    <button class="scan-btn" id="scan-btn" onclick="runScan()">🔍 Scan Wave 3 Criteria</button>
+    <div class="refresh-time" id="scan-time"></div>
+  </div>
+  <div id="scan-results" class="scan-results"></div>
+</div>
+
+<!-- ════════════════ TAB 3: CHECKLIST ════════════════ -->
+<div id="tab-checklist" class="section">
+  <div class="card">
+    <div class="card-title">🌍 GATE 1 — Market Context</div>
+    <ul class="checklist" id="cl-market">
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> S&amp;P 500 / SET อยู่เหนือ 200-day MA</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> ตลาดโดยรวมไม่อยู่ใน Strong Downtrend</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> Sector กำลัง outperform ตลาด</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-title">📊 GATE 2 — Screener Filter</div>
+    <ul class="checklist">
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> 1M Performance: +5% ถึง +20%</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> 1M Perf > 3M Perf</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> RSI (14): 45–65</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> Relative Volume > 1.3</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> MACD Histogram > 0</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> EMA 20 > EMA 50</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-title">🌊 GATE 3 — Wave Validation</div>
+    <ul class="checklist">
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> เห็น Wave 1 และ Wave 2 ชัดบน Chart</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> Wave 2 retraced 38.2–61.8% ของ Wave 1</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> Wave 2 Low ไม่ต่ำกว่า Wave 1 Start</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> ราคาเพิ่งทะลุ High ของ Wave 1</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> Volume Wave 3 > Volume Wave 2</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> CDC Action Zone เพิ่งเปลี่ยนเป็นเขียว</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-title">💰 GATE 4 — Entry &amp; Management</div>
+    <ul class="checklist">
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> รอ Pullback มา EMA9/EMA20</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> R:R ≥ 1:2.5</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> Target = 161.8% Fib Extension</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> Stop Loss = ใต้ Wave 2 Low</li>
+      <li onclick="toggle(this)"><span class="check-icon">✓</span> คำนวณ Position Size ด้วย 2% Rule แล้ว</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-title">🏁 ความพร้อมรวม</div>
+    <div class="results-grid">
+      <div class="result-box"><div class="lbl">ผ่านแล้ว</div><div class="val" id="checked-count">0</div><div class="sub">จาก 20 ข้อ</div></div>
+      <div class="result-box"><div class="lbl">สถานะ</div><div class="val" id="ready-status" style="font-size:1.1rem">⏳ รอ</div><div class="sub" id="ready-sub">ยังไม่พร้อม</div></div>
+    </div>
+    <div class="progress-bar-bg" style="margin-top:12px"><div class="progress-bar-fill" id="overall-bar" style="width:0%"></div></div>
+    <div class="progress-label" id="overall-pct">0/20 ข้อ</div>
+    <button onclick="resetChecklist()" style="margin-top:14px;width:100%;background:#4a5568;border:none;color:#e2e8f0;border-radius:8px;padding:10px;cursor:pointer;font-size:.9rem">🔄 Reset</button>
+  </div>
+</div>
+
+<style>
+  .checklist{list-style:none}
+  .checklist li{display:flex;align-items:center;gap:8px;padding:7px 0;font-size:.85rem;color:#a0aec0;cursor:pointer;border-bottom:1px solid #2d3748}
+  .checklist li:last-child{border:none}
+  .check-icon{width:20px;height:20px;border-radius:50%;border:2px solid #4a5568;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;transition:all .2s}
+  .check-icon.checked{background:#276749;border-color:#68d391;color:#fff}
+  .checklist li.checked-item{color:#68d391}
+</style>
+
+<script>
+// ── Tab Switch ──
+function switchTab(t,btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── Market Toggle ──
+let market='US';
+function setMarket(m){
+  market=m;
+  document.getElementById('mkt-us').className='mkt-btn'+(m==='US'?' active':'');
+  document.getElementById('mkt-th').className='mkt-btn'+(m==='TH'?' active':'');
+  const inputs=document.querySelectorAll('.ticker-in');
+  if(m==='TH'){inputs[0].placeholder='e.g. GULF';inputs[1].placeholder='e.g. DELTA';}
+  else{inputs[0].placeholder='e.g. NVDA';inputs[1].placeholder='e.g. WMB';}
+}
+
+// ── Utility ──
+function fmt(n,d=0){if(isNaN(n)||!isFinite(n))return'—';return n.toLocaleString('th-TH',{minimumFractionDigits:d,maximumFractionDigits:d})}
+function pct(n,d=1){return(n>=0?'+':'')+n.toFixed(d)+'%'}
+function emaArr(arr,p){
+  const k=2/(p+1);let e=arr[0];const out=[e];
+  for(let i=1;i<arr.length;i++){e=arr[i]*k+e*(1-k);out.push(e);}
+  return out;
+}
+function lastEma(arr,p){return emaArr(arr,p)[arr.length-1]}
+function calcRSI(closes,p=14){
+  if(closes.length<p+1)return null;
+  let ag=0,al=0;
+  for(let i=1;i<=p;i++){const d=closes[i]-closes[i-1];d>0?ag+=d:al-=d;}
+  ag/=p;al/=p;
+  for(let i=p+1;i<closes.length;i++){
+    const d=closes[i]-closes[i-1],g=d>0?d:0,l=d<0?-d:0;
+    ag=(ag*(p-1)+g)/p;al=(al*(p-1)+l)/p;
+  }
+  if(al===0)return 100;
+  return 100-(100/(1+ag/al));
+}
+function calcMACD(closes){
+  if(closes.length<35)return null;
+  const e12=emaArr(closes,12),e26=emaArr(closes,26);
+  const macdLine=e12.map((v,i)=>v-e26[i]);
+  const sig=emaArr(macdLine.slice(25),9);
+  const hist=macdLine[macdLine.length-1]-sig[sig.length-1];
+  return{macd:macdLine[macdLine.length-1],signal:sig[sig.length-1],histogram:hist};
+}
+
+// ── Fetch stock data via Yahoo Finance ──
+async function fetchStock(rawTicker){
+  const sym = market==='TH' ? (rawTicker.includes('.')?rawTicker:rawTicker+'.BK') : rawTicker;
+  const range='1y', interval='1d';
+  const proxies=[
+    'https://corsproxy.io/?',
+    'https://api.allorigins.win/raw?url=',
+    'https://proxy.cors.sh/',
+  ];
+  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=${range}&interval=${interval}`;
+  let resp;
+  let lastErr='';
+  // Try each proxy in order
+  for(const proxy of proxies){
+    try{
+      resp=await Promise.race([
+        fetch(proxy+url,{signal:AbortSignal.timeout(8000)}),
+        new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),8000))
+      ]);
+      if(resp.ok)break;
+      resp=null;
+    }catch(e){lastErr=e.message;resp=null;}
+  }
+  // Fallback: try direct (works if browser allows)
+  if(!resp){
+    try{
+      resp=await fetch(url,{signal:AbortSignal.timeout(6000)});
+    }catch(e){
+      return{error:'เชื่อมต่อไม่ได้ — ตรวจสอบ Ticker หรือลอง VPN ครับ ('+lastErr+')'}
+    }
+  }
+  const json=await resp.json();
+  const r=json?.chart?.result?.[0];
+  if(!r)return{error:'ไม่พบข้อมูล — ตรวจสอบ Ticker อีกครั้ง'};
+  const meta=r.meta;
+  const quotes=r.indicators?.quote?.[0];
+  const timestamps=r.timestamp;
+  if(!quotes||!timestamps)return{error:'ข้อมูลไม่ครบ'};
+  const closes=quotes.close.filter(v=>v!=null);
+  const volumes=quotes.volume.filter(v=>v!=null);
+  const n=closes.length;
+  if(n<30)return{error:'ข้อมูลน้อยเกินไป'};
+  const cur=meta.regularMarketPrice??closes[n-1];
+  const prevClose=meta.chartPreviousClose??closes[n-2];
+  const dayChgPct=(cur-prevClose)/prevClose*100;
+  const hi52=meta.fiftyTwoWeekHigh??Math.max(...closes);
+  const lo52=meta.fiftyTwoWeekLow??Math.min(...closes);
+  // Performance
+  const p1m=n>=21?(cur-closes[n-22])/closes[n-22]*100:null;
+  const p3m=n>=63?(cur-closes[n-64])/closes[n-64]*100:null;
+  const p6m=n>=126?(cur-closes[n-127])/closes[n-127]*100:null;
+  // Indicators
+  const rsi=calcRSI(closes.slice(-30));
+  const macd=calcMACD(closes.slice(-60));
+  const ema20=lastEma(closes,20);
+  const ema50=lastEma(closes,50);
+  const ema200=n>=200?lastEma(closes,200):null;
+  // Relative Volume (current vs 20-day avg)
+  const avgVol20=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/20;
+  const lastVol=volumes[volumes.length-1];
+  const relVol=avgVol20>0?lastVol/avgVol20:null;
+  const name=meta.longName??meta.shortName??rawTicker;
+  return{sym,name,cur,prevClose,dayChgPct,hi52,lo52,p1m,p3m,p6m,rsi,macd,ema20,ema50,ema200,relVol};
+}
+
+// ── Score & render a single stock ──
+function scoreStock(d){
+  const criteria=[];
+  // RSI 45-65
+  const rsiOk=d.rsi!=null&&d.rsi>=45&&d.rsi<=65;
+  criteria.push({label:'RSI 45–65',value:d.rsi!=null?d.rsi.toFixed(1):'N/A',pass:rsiOk,warn:d.rsi&&d.rsi>65&&d.rsi<=72});
+  // MACD Histogram > 0
+  const macdOk=d.macd&&d.macd.histogram>0;
+  criteria.push({label:'MACD > 0',value:d.macd?d.macd.histogram.toFixed(2):'N/A',pass:macdOk});
+  // EMA20 > EMA50
+  const emaOk=d.ema20>d.ema50;
+  criteria.push({label:'EMA20>EMA50',value:emaOk?'✓':'✗',pass:emaOk});
+  // 1M Perf +5% to +20%
+  const p1mOk=d.p1m!=null&&d.p1m>=5&&d.p1m<=20;
+  criteria.push({label:'1M +5–20%',value:d.p1m!=null?pct(d.p1m):'N/A',pass:p1mOk,warn:d.p1m&&d.p1m>20});
+  // 1M > 3M
+  const perfOk=d.p1m!=null&&d.p3m!=null&&d.p1m>d.p3m;
+  criteria.push({label:'1M > 3M',value:d.p3m!=null?pct(d.p3m):'N/A',pass:perfOk});
+  // Relative Volume > 1.3
+  const rvOk=d.relVol!=null&&d.relVol>=1.3;
+  criteria.push({label:'Rel.Vol >1.3',value:d.relVol!=null?d.relVol.toFixed(2)+'x':'N/A',pass:rvOk});
+  // Price above EMA200 (bonus)
+  const above200=d.ema200!=null&&d.cur>d.ema200;
+  criteria.push({label:'Above EMA200',value:d.ema200!=null?'฿'+fmt(d.ema200,2):'N/A',pass:above200,bonus:true});
+  // 52W position: not at extreme high (< 90%)
+  const pos52=(d.cur-d.lo52)/(d.hi52-d.lo52)*100;
+  const pos52Ok=pos52>=30&&pos52<=85;
+  criteria.push({label:'52W Pos 30–85%',value:pos52.toFixed(0)+'%',pass:pos52Ok,warn:pos52>85});
+
+  const scored=criteria.filter(c=>!c.bonus);
+  const passed=scored.filter(c=>c.pass).length;
+  const total=scored.length;
+  return{criteria,passed,total,score:passed/total};
+}
+
+function renderStockCard(d){
+  if(d.error){
+    return`<div class="stock-card fail">
+      <div class="stock-header">
+        <div><div class="stock-ticker">${d.rawTicker}</div><div class="stock-name">ไม่พบข้อมูล</div></div>
+      </div>
+      <div class="err-msg">${d.error}</div>
+    </div>`;
+  }
+  const{criteria,passed,total,score}=scoreStock(d);
+  const cls=score>=0.75?'pass':score>=0.5?'warn':'fail';
+  const pillCls=score>=0.75?'pass':score>=0.5?'warn':'fail';
+  const pillTxt=score>=0.75?'🟢 Wave 3 Ready':score>=0.5?'🟡 ดูเพิ่มเติม':'🔴 ยังไม่พร้อม';
+  const chgCls=d.dayChgPct>=0?'up':'dn';
+  const barColor=score>=0.75?'#68d391':score>=0.5?'#f6e05e':'#fc8181';
+  const critsHtml=criteria.map(c=>{
+    const dot=c.pass?'pass':c.warn?'warn':c.bonus&&!c.pass?'na':'fail';
+    const style=c.bonus?'opacity:.7':'';
+    return`<div class="crit" style="${style}">
+      <span class="crit-dot ${dot}"></span>
+      <span class="crit-label">${c.label}</span>
+      <span class="crit-value">${c.value}</span>
+    </div>`;
+  }).join('');
+  const cur=market==='TH'?'฿':'$';
+  return`<div class="stock-card ${cls}">
+    <div class="stock-header">
+      <div>
+        <div class="stock-ticker">${d.sym.replace('.BK','')}</div>
+        <div class="stock-name">${d.name.substring(0,32)}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="stock-price"><span class="price">${cur}${fmt(d.cur,2)}</span></div>
+        <div class="stock-price"><span class="chg ${chgCls}">${pct(d.dayChgPct)} วันนี้</span></div>
+      </div>
+    </div>
+    <div style="padding:10px 16px 6px;display:flex;align-items:center;justify-content:space-between">
+      <span class="score-pill ${pillCls}">${pillTxt}</span>
+      <span style="font-size:.78rem;color:#718096">${passed}/${total} criteria</span>
+    </div>
+    <div class="wave-score-bar"><div style="height:100%;border-radius:4px;width:${score*100}%;background:${barColor};transition:width .5s"></div></div>
+    <div class="criteria-grid">${critsHtml}</div>
+    <div class="note-row">52W: ${cur}${fmt(d.lo52,2)} – ${cur}${fmt(d.hi52,2)} &nbsp;|&nbsp; 6M: ${d.p6m!=null?pct(d.p6m):'—'} &nbsp;|&nbsp; RelVol: ${d.relVol!=null?d.relVol.toFixed(2)+'x':'—'}</div>
+  </div>`;
+}
+
+async function runScan(){
+  const inputs=[...document.querySelectorAll('.ticker-in')];
+  const tickers=inputs.map(i=>i.value.trim().toUpperCase()).filter(Boolean);
+  if(tickers.length===0){alert('กรอก Ticker อย่างน้อย 1 ตัวก่อนครับ');return;}
+  const btn=document.getElementById('scan-btn');
+  btn.disabled=true;btn.textContent='⏳ กำลัง Scan...';
+  const container=document.getElementById('scan-results');
+  // Show loading skeletons
+  container.innerHTML=tickers.map(t=>`
+    <div class="stock-card loading">
+      <div class="stock-header"><div><div class="stock-ticker">${t}</div><div class="stock-name">กำลังโหลด...</div></div></div>
+      <div class="loading-bar"></div>
+    </div>`).join('');
+  // Fetch sequentially to avoid rate limits
+  const results=[];
+  for(const t of tickers){
+    const d=await fetchStock(t);
+    d.rawTicker=t;
+    results.push(d);
+    // Update as we get each result
+    container.innerHTML=results.map(r=>renderStockCard(r)).join('')+
+      (results.length<tickers.length?tickers.slice(results.length).map(t=>`
+        <div class="stock-card loading">
+          <div class="stock-header"><div><div class="stock-ticker">${t}</div><div class="stock-name">กำลังโหลด...</div></div></div>
+          <div class="loading-bar"></div>
+        </div>`).join(''):'');
+    await new Promise(r=>setTimeout(r,400)); // Small delay between requests
+  }
+  container.innerHTML=results.map(r=>renderStockCard(r)).join('');
+  const now=new Date();
+  document.getElementById('scan-time').textContent=
+    `อัปเดตล่าสุด: ${now.toLocaleDateString('th-TH')} ${now.toLocaleTimeString('th-TH')} | ข้อมูลจาก Yahoo Finance`;
+  btn.disabled=false;btn.textContent='🔄 Scan อีกครั้ง';
+}
+
+// ── Position Size Calculator ──
+function toggleUSD(){
+  const isusd=document.getElementById('currency').value==='USD';
+  document.getElementById('usd-row').style.display=isusd?'flex':'none';
+  calculate();
+}
+function syncRisk(val){
+  document.getElementById('risk-pct').value=val;
+  const b=document.getElementById('risk-badge');
+  b.textContent=val+'%';b.className='risk-badge'+(val>3?' danger':val>2?' warn':'');
+  calculate();
+}
+function syncRiskInput(val){
+  const v=Math.min(Math.max(parseFloat(val)||1,.5),5);
+  document.getElementById('risk-range').value=v;syncRisk(v);
+}
+function calculate(){
+  const capital=parseFloat(document.getElementById('capital').value)||0;
+  const riskPct=parseFloat(document.getElementById('risk-pct').value)||2;
+  const entry=parseFloat(document.getElementById('entry').value)||0;
+  const sl=parseFloat(document.getElementById('sl').value)||0;
+  const t1=parseFloat(document.getElementById('t1').value)||0;
+  const t2=parseFloat(document.getElementById('t2').value)||0;
+  const ticker=document.getElementById('ticker').value||'—';
+  const isUSD=document.getElementById('currency').value==='USD';
+  const usdthb=parseFloat(document.getElementById('usdthb').value)||33.5;
+  const unit=isUSD?'$':'฿';
+  if(!capital||!entry||!sl||entry<=sl){
+    ['shares','capital-used','max-loss','risk-per-share'].forEach(id=>document.getElementById(id).textContent='—');
+    document.getElementById('rr-section').style.display='none';
+    document.getElementById('summary').style.display='none';return;
+  }
+  const maxLossTHB=capital*(riskPct/100);
+  const riskPerUnit=(entry-sl)*(isUSD?usdthb:1);
+  const shares=Math.floor(maxLossTHB/riskPerUnit);
+  const capUsedTHB=shares*entry*(isUSD?usdthb:1);
+  const capPct=(capUsedTHB/capital*100).toFixed(1);
+  const actualLoss=shares*riskPerUnit;
+  document.getElementById('shares').textContent=fmt(shares);
+  document.getElementById('capital-used').textContent='฿'+fmt(capUsedTHB);
+  document.getElementById('capital-pct').textContent=capPct+'% ของ Portfolio';
+  document.getElementById('max-loss').textContent='฿'+fmt(actualLoss);
+  document.getElementById('max-loss-pct').textContent=riskPct+'% ของทุน';
+  document.getElementById('risk-per-share').textContent=unit+fmt(entry-sl,2);
+  const hasT=t1>entry||t2>entry;
+  document.getElementById('rr-section').style.display=hasT?'block':'none';
+  let bestRR=0;
+  if(t1>entry){const r=(t1-entry)/(entry-sl);const el=document.getElementById('rr1');el.textContent='1:'+r.toFixed(1);el.className='val '+(r>=2.5?'green':r>=1.5?'yellow':'red');document.getElementById('rr1-label').textContent='+'+fmt((t1-entry)/entry*100,1)+'%  ฿'+fmt(shares*(t1-entry)*(isUSD?usdthb:1));if(r>bestRR)bestRR=r;}
+  else{document.getElementById('rr1').textContent='—';document.getElementById('rr1-label').textContent='ยังไม่ใส่ Target 1';}
+  if(t2>entry){const r=(t2-entry)/(entry-sl);const el=document.getElementById('rr2');el.textContent='1:'+r.toFixed(1);el.className='val '+(r>=3?'blue':r>=2?'green':'yellow');document.getElementById('rr2-label').textContent='+'+fmt((t2-entry)/entry*100,1)+'%  ฿'+fmt(shares*(t2-entry)*(isUSD?usdthb:1));if(r>bestRR)bestRR=r;}
+  else{document.getElementById('rr2').textContent='—';document.getElementById('rr2-label').textContent='ยังไม่ใส่ Target 2';}
+  if(bestRR>0){const pct2=Math.min(bestRR/5*100,100);const bar=document.getElementById('rr-bar');bar.style.width=pct2+'%';bar.className='rr-bar-fill '+(bestRR>=3?'great':bestRR>=2.5?'good':bestRR>=1.5?'ok':'bad');document.getElementById('rr-note').textContent='Best R:R = 1:'+bestRR.toFixed(1)+'  →  '+(bestRR>=3?'🔥 ดีมาก เล่นเต็ม 2%':bestRR>=2.5?'✅ ดี เล่นได้':bestRR>=1.5?'⚠️ พอไหว ลอง 1%':'❌ ไม่แนะนำ');}
+  document.getElementById('summary').style.display='block';
+  document.getElementById('sum-ticker').textContent=ticker;
+  document.getElementById('sum-entry').textContent=unit+entry;
+  document.getElementById('sum-sl').textContent=unit+sl+'  (SL: '+fmt(entry-sl,2)+')';
+  document.getElementById('sum-t1').textContent=t1?unit+t1:'—';
+  document.getElementById('sum-t2').textContent=t2?unit+t2:'—';
+  document.getElementById('sum-shares').textContent=fmt(shares)+' หุ้น';
+  document.getElementById('sum-cap').textContent='฿'+fmt(capUsedTHB)+' ('+capPct+'%)';
+  document.getElementById('sum-loss').textContent='฿'+fmt(actualLoss)+' ('+riskPct+'%)';
+}
+
+// ── Checklist ──
+let checkedItems=new Set();
+function toggle(li){
+  const icon=li.querySelector('.check-icon');
+  if(checkedItems.has(li)){checkedItems.delete(li);icon.classList.remove('checked');li.classList.remove('checked-item');}
+  else{checkedItems.add(li);icon.classList.add('checked');li.classList.add('checked-item');}
+  updateProgress();
+}
+function updateProgress(){
+  const total=document.querySelectorAll('.checklist li').length;
+  const done=checkedItems.size;
+  document.getElementById('checked-count').textContent=done;
+  document.getElementById('overall-bar').style.width=(done/total*100)+'%';
+  document.getElementById('overall-pct').textContent=done+'/'+total+' ข้อ';
+  const s=document.getElementById('ready-status'),b=document.getElementById('ready-sub');
+  if(done===total){s.textContent='🟢 พร้อม!';b.textContent='เปิด Trade ได้เลย';}
+  else if(done>=total*.75){s.textContent='🟡 เกือบแล้ว';b.textContent='ขาดอีก '+(total-done)+' ข้อ';}
+  else{s.textContent='⏳ รอ';b.textContent='ยังขาดอีก '+(total-done)+' ข้อ';}
+}
+function resetChecklist(){
+  checkedItems.clear();
+  document.querySelectorAll('.checklist li').forEach(li=>{li.classList.remove('checked-item');li.querySelector('.check-icon').classList.remove('checked');});
+  updateProgress();
+}
+</script>
+</body>
+</html>
